@@ -1,13 +1,10 @@
 package tevonial.ocr;
 
-import javafx.scene.input.KeyCode;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
+import java.io.File;
 
 public class OcrGui extends javax.swing.JFrame {
     private static OcrGui instance;
@@ -54,7 +51,6 @@ public class OcrGui extends javax.swing.JFrame {
 
     public void displayDigit(int digit, BufferedImage img) {
         jLabel6.setText(String.valueOf(digit));
-        //BufferedImage img = DataHandler.getImage(digit);
         if (img != null ) {
             imagePanel.setImage(img);
         }
@@ -64,10 +60,15 @@ public class OcrGui extends javax.swing.JFrame {
         jLabel7.setText(String.valueOf(g));
     }
 
+    public void setError(double e) {
+        String f = "%4.3f";
+        jLabel9.setText(String.format(f, e) + "%");
+    }
+
     public int getIterations() {
         int iter = 0;
         try {
-            iter = Integer.valueOf(jTextField1.getText());
+            iter = Integer.valueOf(iterationsTextField.getText());
         } catch (NumberFormatException e) {}
         return iter;
     }
@@ -75,30 +76,44 @@ public class OcrGui extends javax.swing.JFrame {
     public double getLearningRate() {
         double l = 0;
         try {
-            l = Double.valueOf(jTextField2.getText());
+            l = Double.valueOf(learningRateTextField.getText());
         } catch (NumberFormatException e) {}
         return l;
     }
 
     public void setProgress(int x, int t) {
         jLabel5.setText(x + "/" + t);
-        jProgressBar1.setValue((x * 100) / t);
+        progressBar.setValue((x * 100) / t);
     }
 
     private void listSelected(int index) {
         int digit = index;
         try {
-            digit = Integer.valueOf(jList1.getModel().getElementAt(index));
+            digit = Integer.valueOf(jList.getModel().getElementAt(index));
         } catch (Exception e) {}
-        //displayDigit(digit);
         selectedIndex = index;
-        jList1.repaint();
+        jList.repaint();
 
         NeuralOCR.guess(digit);
     }
 
+    public void setFile(File file) {
+        String filename;
+        if (file == null) {
+            filename = "untitled";
+            saveMenuItem.setEnabled(false);
+        } else {
+            filename = file.getName();
+            saveMenuItem.setEnabled(true);
+        }
+        setTitle(filename + " - Neural OCR");
+    }
+
     private void initListeners() {
-        jList1.addMouseListener(new MouseAdapter() {
+        learnButton.addActionListener(evt -> NeuralOCR.learn());
+        stopButton.addActionListener(evt -> NeuralOCR.generateNetwork());
+
+        jList.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent evt) {
                 JList list = (JList)evt.getSource();
@@ -107,15 +122,15 @@ public class OcrGui extends javax.swing.JFrame {
                 }
             }
         });
-        jList1.addKeyListener(new KeyAdapter() {
+        jList.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent keyEvent) {
                 if (keyEvent.getKeyCode() == KeyEvent.VK_ENTER) {
-                    listSelected(jList1.getSelectedIndex());
+                    listSelected(jList.getSelectedIndex());
                 }
             }
         });
-        jList1.setCellRenderer(new DefaultListCellRenderer() {
+        jList.setCellRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                 Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus) ;
@@ -126,54 +141,87 @@ public class OcrGui extends javax.swing.JFrame {
                 return c ;
             }
         });
-        jTextField1.addKeyListener(new KeyAdapter() {
+        iterationsTextField.addKeyListener(new KeyAdapter() {
             @Override
             public void keyReleased(KeyEvent keyEvent) {
-                String t = jTextField1.getText();
+                String t = iterationsTextField.getText();
                 if (t.isEmpty()) { t = "-"; }
                 jLabel5.setText("-/" + t);
             }
         });
-        jButton2.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent mouseEvent) {
-                NeuralOCR.generateNetwork();
+        saveMenuItem.addActionListener(actionEvent -> NeuralOCR.save(null));
+        saveAsMenuItem.addActionListener(actionEvent -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setCurrentDirectory(new File(System.getProperty("user.dir")));
+            if (fileChooser.showSaveDialog(OcrGui.this) == JFileChooser.APPROVE_OPTION) {
+                File file = fileChooser.getSelectedFile();
+                //save
+                NeuralOCR.save(file);
             }
+        });
+        openMenuItem.addActionListener(actionEvent -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setCurrentDirectory(new File(System.getProperty("user.dir")));
+            if (fileChooser.showOpenDialog(OcrGui.this) == JFileChooser.APPROVE_OPTION) {
+                File file = fileChooser.getSelectedFile();
+                // load from file
+                NeuralOCR.open(file);
+            }
+        });
+        testAllMenuItem.addActionListener(actionEvent -> {
+            NeuralOCR.testAll();
         });
     }
 
     // <editor-fold defaultstate="collapsed" desc="Generated Code">
     private void initComponents() {
 
-        jScrollPane1 = new javax.swing.JScrollPane();
-        jList1 = new javax.swing.JList<>();
+        menuBar = new JMenuBar();
+        fileMenu = new JMenu("File");
+        openMenuItem = new JMenuItem("Open");
+        saveMenuItem  =new JMenuItem("Save");
+        saveAsMenuItem  =new JMenuItem("Save As");
+        testMenu = new JMenu("Test");
+        testAllMenuItem = new JMenuItem("Test all");
+
+        scrollPane = new javax.swing.JScrollPane();
+        jList = new javax.swing.JList<>();
         jPanel3 = new javax.swing.JPanel();
         jLabel3 = new javax.swing.JLabel();
         jLabel4 = new javax.swing.JLabel();
-        jProgressBar1 = new javax.swing.JProgressBar();
+        progressBar = new javax.swing.JProgressBar();
         jLabel5 = new javax.swing.JLabel();
-        jTextField1 = new javax.swing.JTextField();
-        jButton1 = new javax.swing.JButton();
-        jTextField2 = new javax.swing.JTextField();
-        jButton2 = new javax.swing.JButton();
+        iterationsTextField = new javax.swing.JTextField();
+        learnButton = new javax.swing.JButton();
+        learningRateTextField = new javax.swing.JTextField();
+        stopButton = new javax.swing.JButton();
         jPanel2 = new javax.swing.JPanel();
         jLabel1 = new javax.swing.JLabel();
         jLabel2 = new javax.swing.JLabel();
         imagePanel = new ImagePanel();
         jLabel6 = new javax.swing.JLabel();
         jLabel7 = new javax.swing.JLabel();
+        jLabel8 = new JLabel();
+        jLabel9 = new JLabel();
+
+        fileMenu.add(openMenuItem);
+        fileMenu.add(saveMenuItem);
+        fileMenu.add(saveAsMenuItem);
+        testMenu.add(testAllMenuItem);
+        menuBar.add(fileMenu);
+        menuBar.add(testMenu);
+        setJMenuBar(menuBar);
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-        setTitle("Neural OCR");
         setResizable(false);
 
-        jList1.setModel(new javax.swing.AbstractListModel<String>() {
+        jList.setModel(new javax.swing.AbstractListModel<String>() {
             String[] strings = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
             public int getSize() { return strings.length; }
             public String getElementAt(int i) { return strings[i]; }
         });
 
-        jScrollPane1.setViewportView(jList1);
+        scrollPane.setViewportView(jList);
 
         jLabel3.setText("Iterations:");
 
@@ -182,11 +230,8 @@ public class OcrGui extends javax.swing.JFrame {
         jLabel5.setHorizontalAlignment(javax.swing.SwingConstants.TRAILING);
         jLabel5.setText("-/-");
 
-        jButton1.setText("Learn");
-        jButton1.addActionListener(evt -> NeuralOCR.learn());
-
-        jButton2.setText("Reset");
-        jButton2.addActionListener(evt -> NeuralOCR.stop());
+        learnButton.setText("Learn");
+        stopButton.setText("Reset");
 
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
@@ -201,13 +246,13 @@ public class OcrGui extends javax.swing.JFrame {
                                                         .addComponent(jLabel3))
                                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                                        .addComponent(jTextField2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 69, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                                        .addComponent(jTextField1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 69, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                                        .addComponent(jProgressBar1, javax.swing.GroupLayout.DEFAULT_SIZE, 207, Short.MAX_VALUE)
+                                                        .addComponent(learningRateTextField, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 69, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                        .addComponent(iterationsTextField, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 69, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                        .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, 207, Short.MAX_VALUE)
                                         .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel3Layout.createSequentialGroup()
-                                                .addComponent(jButton1)
+                                                .addComponent(learnButton)
                                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                                .addComponent(jButton2)
+                                                .addComponent(stopButton)
                                                 .addGap(18, 18, 18)
                                                 .addComponent(jLabel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                                 .addContainerGap())
@@ -218,18 +263,18 @@ public class OcrGui extends javax.swing.JFrame {
                                 .addContainerGap()
                                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                                         .addComponent(jLabel3)
-                                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                        .addComponent(iterationsTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                                         .addComponent(jLabel4)
-                                        .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                        .addComponent(learningRateTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 21, Short.MAX_VALUE)
                                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                        .addComponent(jButton1)
-                                        .addComponent(jButton2)
+                                        .addComponent(learnButton)
+                                        .addComponent(stopButton)
                                         .addComponent(jLabel5))
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jProgressBar1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(progressBar, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addContainerGap())
         );
 
@@ -253,10 +298,18 @@ public class OcrGui extends javax.swing.JFrame {
         );
 
         jLabel6.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
-        jLabel6.setText("");
+        jLabel6.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        //jLabel6.setText("-");
 
         jLabel7.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
-        jLabel7.setText("");
+        jLabel7.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        //jLabel7.setText("-");
+
+        jLabel8.setText("Error:");
+
+        jLabel9.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
+        jLabel9.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        //jLabel9.setText("-");
 
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
@@ -266,14 +319,20 @@ public class OcrGui extends javax.swing.JFrame {
                                 .addContainerGap()
                                 .addComponent(imagePanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                        .addComponent(jLabel1)
-                                        .addComponent(jLabel2))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                        .addComponent(jLabel7, javax.swing.GroupLayout.Alignment.TRAILING)
-                                        .addComponent(jLabel6, javax.swing.GroupLayout.Alignment.TRAILING))
-                                .addGap(37, 37, 37))
+                                        .addGroup(jPanel2Layout.createSequentialGroup()
+                                                .addComponent(jLabel1)
+                                                .addGap(18, 18, 18)
+                                                .addComponent(jLabel6, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                                        .addGroup(jPanel2Layout.createSequentialGroup()
+                                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                                        .addComponent(jLabel2)
+                                                        .addComponent(jLabel8))
+                                                .addGap(5, 5, 5)
+                                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                                        .addComponent(jLabel9, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                                        .addComponent(jLabel7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                                .addContainerGap())
         );
         jPanel2Layout.setVerticalGroup(
                 jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -289,8 +348,11 @@ public class OcrGui extends javax.swing.JFrame {
                                                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                                                         .addComponent(jLabel7)
                                                         .addComponent(jLabel2))
-                                                .addGap(0, 0, Short.MAX_VALUE)))
-                                .addContainerGap())
+                                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                                        .addComponent(jLabel8)
+                                                        .addComponent(jLabel9))))
+                                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -299,7 +361,7 @@ public class OcrGui extends javax.swing.JFrame {
                 layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                         .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                                 .addContainerGap()
-                                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 170, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(scrollPane, javax.swing.GroupLayout.PREFERRED_SIZE, 170, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                                         .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -311,7 +373,7 @@ public class OcrGui extends javax.swing.JFrame {
                         .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                                 .addContainerGap()
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                        .addComponent(jScrollPane1)
+                                        .addComponent(scrollPane)
                                         .addGroup(layout.createSequentialGroup()
                                                 .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
@@ -327,8 +389,8 @@ public class OcrGui extends javax.swing.JFrame {
 
     // Variables declaration - do not modify
     private ImagePanel imagePanel;
-    private javax.swing.JButton jButton1;
-    private javax.swing.JButton jButton2;
+    private javax.swing.JButton learnButton;
+    private javax.swing.JButton stopButton;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
@@ -336,12 +398,16 @@ public class OcrGui extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel5;
     private javax.swing.JLabel jLabel6;
     private javax.swing.JLabel jLabel7;
-    private javax.swing.JList<String> jList1;
+    private JLabel jLabel8, jLabel9;
+    private javax.swing.JList<String> jList;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
-    private javax.swing.JProgressBar jProgressBar1;
-    private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JTextField jTextField1;
-    private javax.swing.JTextField jTextField2;
+    private javax.swing.JProgressBar progressBar;
+    private javax.swing.JScrollPane scrollPane;
+    private javax.swing.JTextField iterationsTextField;
+    private javax.swing.JTextField learningRateTextField;
+    private JMenuBar menuBar;
+    private JMenu fileMenu, testMenu;
+    private JMenuItem saveMenuItem, saveAsMenuItem, openMenuItem, testAllMenuItem;
     // End of variables declaration
 }
