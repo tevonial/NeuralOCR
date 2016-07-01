@@ -13,8 +13,6 @@ import java.util.Arrays;
  * Created by Connor on 6/28/2016.
  */
 public class DataHandler {
-    //private static byte[] data = new byte[784];
-
     private static Data[] data = new Data[10];
     private static final int WIDTH = 28, HEIGHT = 28, SIZE = 784, SCALE_WIDTH = 100, SCALE_HEIGHT = 100;
 
@@ -70,7 +68,7 @@ public class DataHandler {
     public static void loadData() {
         byte[] temp = new byte[SIZE];
         for (int i = 0; i< data.length; i++){
-            Path path = Paths.get("data" + i);
+            Path path = Paths.get("data/data" + i);
             try {
                 temp = Files.readAllBytes(path);
                 System.out.println("Loaded " + path.toString());
