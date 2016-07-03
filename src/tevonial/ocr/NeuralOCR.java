@@ -25,8 +25,12 @@ public class NeuralOCR {
     public static void generateNetwork() {
         net = null;
         net = new Network(784, 10)
-                .setHiddenLayers(1, 150)
+                .setHiddenLayers(1, 200)
                 .build();
+    }
+
+    public static Network getNetwork() {
+        return net;
     }
 
     public static void learn() {
