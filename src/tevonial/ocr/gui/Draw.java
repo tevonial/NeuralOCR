@@ -1,4 +1,7 @@
-package tevonial.ocr;
+package tevonial.ocr.gui;
+
+import tevonial.ocr.ImagePanel;
+import tevonial.ocr.NeuralOCR;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -13,15 +16,15 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
 
-/**
- * Created by Connor on 7/3/2016.
- */
-public class DrawGui extends JFrame {
+public class Draw extends JFrame {
     DefaultTableModel tableModel;
     int guess = -1;
 
 
-    public DrawGui() {
+    public Draw() {
+        Image image = Toolkit.getDefaultToolkit().getImage(getClass().getResource("icon.png"));
+        setIconImage(image);
+
         tableModel = new DefaultTableModel(
                 new Object [][] {
                         {"0", null},
@@ -84,7 +87,7 @@ public class DrawGui extends JFrame {
 
             previewImage = new BufferedImage(28, 28, BufferedImage.TYPE_BYTE_GRAY);
             previewGraphics = previewImage.createGraphics();
-            previewGraphics.setStroke(new BasicStroke(1));
+            previewGraphics.setStroke(new BasicStroke(2));
 
             for (int i = 0; i < index - 1; i++)
                 previewGraphics.drawLine(arr[i].x / 7, arr[i].y / 7, arr[i + 1].x / 7, arr[i + 1].y / 7);
@@ -111,9 +114,14 @@ public class DrawGui extends JFrame {
             byte[] data = ((DataBufferByte) previewImage.getData().getDataBuffer()).getData();
             double[] input = new double[784];
 
+            //String log = "";
+
             for (int j = 0; j < data.length; j++) {
                 input[j] = data[j] & 0xff;
+                //log += input[j];
             }
+
+            //System.out.println(log);
 
             double[] output = NeuralOCR.getNetwork().process(input, null, false, null);
             double max = 0.0; guess = 0;
@@ -223,12 +231,7 @@ public class DrawGui extends JFrame {
         );
 
         pack();
-    }// </editor-fold>
-
-    /**
-     * @param args the command line arguments
-     */
-
+    }
 
     // Variables declaration - do not modify
     private DrawPanel drawPanel;/*

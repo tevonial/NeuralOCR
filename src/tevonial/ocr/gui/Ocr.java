@@ -1,4 +1,6 @@
-package tevonial.ocr;
+package tevonial.ocr.gui;
+
+import tevonial.ocr.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -6,30 +8,21 @@ import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 
-public class OcrGui extends javax.swing.JFrame {
-    private static OcrGui instance;
+public class Ocr extends javax.swing.JFrame {
+    private static Ocr instance;
     private static Object obj = new Object();
     private int selectedIndex;
 
-    public static OcrGui createGUI() {
+    public static Ocr createGUI() {
         try {
-            /*for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-                if ("Windows Classic".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }*/
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (ClassNotFoundException | InstantiationException | javax.swing.UnsupportedLookAndFeelException | IllegalAccessException ex) {}
 
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                instance = new OcrGui();
-                instance.setVisible(true);
-                synchronized (obj) {
-                    obj.notifyAll();
-                }
+        java.awt.EventQueue.invokeLater(() -> {
+            instance = new Ocr();
+            instance.setVisible(true);
+            synchronized (obj) {
+                obj.notifyAll();
             }
         });
         synchronized (obj) {
@@ -41,7 +34,7 @@ public class OcrGui extends javax.swing.JFrame {
         return instance;
     }
 
-    private OcrGui() {
+    private Ocr() {
         initComponents();
         initListeners();
     }
@@ -110,15 +103,6 @@ public class OcrGui extends javax.swing.JFrame {
         setTitle(filename + " - Neural OCR");
     }
 
-    public void createDrawWindow() {
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                new DrawGui().setVisible(true);
-            }
-        });
-    }
-
     private void initListeners() {
         learnButton.addActionListener(evt -> NeuralOCR.learn());
         stopButton.addActionListener(evt -> NeuralOCR.generateNetwork());
@@ -163,7 +147,7 @@ public class OcrGui extends javax.swing.JFrame {
         saveAsMenuItem.addActionListener(actionEvent -> {
             JFileChooser fileChooser = new JFileChooser();
             fileChooser.setCurrentDirectory(new File(System.getProperty("user.dir")));
-            if (fileChooser.showSaveDialog(OcrGui.this) == JFileChooser.APPROVE_OPTION) {
+            if (fileChooser.showSaveDialog(Ocr.this) == JFileChooser.APPROVE_OPTION) {
                 File file = fileChooser.getSelectedFile();
                 NeuralOCR.save(file);
             }
@@ -171,7 +155,7 @@ public class OcrGui extends javax.swing.JFrame {
         openMenuItem.addActionListener(actionEvent -> {
             JFileChooser fileChooser = new JFileChooser();
             fileChooser.setCurrentDirectory(new File(System.getProperty("user.dir")));
-            if (fileChooser.showOpenDialog(OcrGui.this) == JFileChooser.APPROVE_OPTION) {
+            if (fileChooser.showOpenDialog(Ocr.this) == JFileChooser.APPROVE_OPTION) {
                 File file = fileChooser.getSelectedFile();
                 NeuralOCR.open(file);
             }
@@ -180,7 +164,10 @@ public class OcrGui extends javax.swing.JFrame {
             NeuralOCR.testAll();
         });
         testDrawMenuItem.addActionListener(actionEvent -> {
-            createDrawWindow();
+            new Draw().setVisible(true);
+        });
+        inspectMenuItem.addActionListener(actionEvent -> {
+            new Inspector().setVisible(true);
         });
     }
 
@@ -195,6 +182,7 @@ public class OcrGui extends javax.swing.JFrame {
         testMenu = new JMenu("Test");
         testAllMenuItem = new JMenuItem("Test all");
         testDrawMenuItem = new JMenuItem("Draw...");
+        inspectMenuItem = new JMenuItem("Inspector");
 
         scrollPane = new javax.swing.JScrollPane();
         jList = new javax.swing.JList<>();
@@ -221,8 +209,10 @@ public class OcrGui extends javax.swing.JFrame {
         fileMenu.add(saveAsMenuItem);
         testMenu.add(testAllMenuItem);
         testMenu.add(testDrawMenuItem);
+        testMenu.add(inspectMenuItem);
         menuBar.add(fileMenu);
         menuBar.add(testMenu);
+
         setJMenuBar(menuBar);
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -421,6 +411,6 @@ public class OcrGui extends javax.swing.JFrame {
     private javax.swing.JTextField learningRateTextField;
     private JMenuBar menuBar;
     private JMenu fileMenu, testMenu;
-    private JMenuItem saveMenuItem, saveAsMenuItem, openMenuItem, testAllMenuItem, testDrawMenuItem;
+    private JMenuItem saveMenuItem, saveAsMenuItem, openMenuItem, testAllMenuItem, testDrawMenuItem, inspectMenuItem;
     // End of variables declaration
 }

@@ -9,15 +9,12 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 
-/**
- * Created by Connor on 6/28/2016.
- */
 public class DataHandler {
     private static Data[] data = new Data[10];
     private static final int WIDTH = 28, HEIGHT = 28, SIZE = 784, SCALE_WIDTH = 100, SCALE_HEIGHT = 100;
 
-    private static class Data {
-        private byte[] bytes = new byte[SIZE * 1000];
+    public static class Data {
+        private byte[] bytes;// = new byte[SIZE * 1000];
 
         public Data(byte[] bytes) {
             this.bytes = bytes;
@@ -27,9 +24,21 @@ public class DataHandler {
             int offset = head * SIZE;
             return Arrays.copyOfRange(bytes, offset, offset + SIZE);
         }
+
+        public int getSize() {
+            return bytes.length;
+        }
+
+        public int getLength() {
+            return bytes.length/SIZE;
+        }
     }
 
     public static BufferedImage renderImage(byte[] data) {
+        return renderImage(data, SCALE_WIDTH, SCALE_HEIGHT);
+    }
+
+    public static BufferedImage renderImage(byte[] data, int w, int h) {
         int[] pixels = new int[SIZE];
         for (int i=0; i<data.length; i++) {
             pixels[i] = data[i] & 0xff;
@@ -39,11 +48,11 @@ public class DataHandler {
         WritableRaster raster = (WritableRaster) image.getRaster();
         raster.setPixels(0, 0, WIDTH, HEIGHT, pixels);
 
-        Image tmp = image.getScaledInstance(SCALE_WIDTH, SCALE_HEIGHT, Image.SCALE_SMOOTH);
-        BufferedImage scaleImage = new BufferedImage(SCALE_WIDTH, SCALE_HEIGHT, BufferedImage.TYPE_BYTE_GRAY);
+        Image tmp = image.getScaledInstance(w, h, Image.SCALE_SMOOTH);
+        BufferedImage scaleImage = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_GRAY);
 
         Graphics2D g2d = scaleImage.createGraphics();
-        g2d.drawImage(tmp, 0, 0, SCALE_WIDTH, SCALE_HEIGHT, null);
+        g2d.drawImage(tmp, 0, 0, w, h, null);
         g2d.dispose();
 
         return scaleImage;
@@ -65,18 +74,27 @@ public class DataHandler {
         return null;
     }
 
-    public static void loadData() {
-        byte[] temp = new byte[SIZE];
+    public static int loadData() {
+        byte[] temp; int length = 0;
         for (int i = 0; i< data.length; i++){
-            Path path = Paths.get("data/data" + i);
+            Path path = Paths.get("data/test/data" + i);
             try {
                 temp = Files.readAllBytes(path);
+
                 System.out.println("Loaded " + path.toString());
+
+                data[i] = new Data(temp);
+
+                if (data[i].getLength() > length) {
+                    length = data[i].getLength();
+                }
             } catch (IOException e) {
                 System.err.println("Error loading " + path.toString());
             }
-            data[i] = new Data(temp);
+
         }
+
+        return length;
     }
 
     public static byte[] getData(int digit, int head) {
