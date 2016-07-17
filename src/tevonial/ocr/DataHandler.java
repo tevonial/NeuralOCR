@@ -77,7 +77,7 @@ public class DataHandler {
     public static int loadData() {
         byte[] temp; int length = 0;
         for (int i = 0; i< data.length; i++){
-            Path path = Paths.get("data/test/data" + i);
+            Path path = Paths.get("data/data" + i);
             try {
                 temp = Files.readAllBytes(path);
 

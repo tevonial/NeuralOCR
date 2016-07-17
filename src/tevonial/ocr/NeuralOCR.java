@@ -25,7 +25,6 @@ public class NeuralOCR {
         gui = Ocr.createGUI();
         gui.setFile(currentFile);
         MAX = DataHandler.loadData();
-        System.out.println(MAX);
 
         generateNetwork();
         gui.displayDigit(0);
