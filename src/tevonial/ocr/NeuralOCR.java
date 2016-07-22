@@ -4,9 +4,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import tevonial.neural.Layer;
-import tevonial.neural.Network;
-import tevonial.neural.Neuron;
+import tevonial.neural.*;
 import tevonial.ocr.gui.Ocr;
 
 import javax.swing.*;
@@ -32,15 +30,13 @@ public class NeuralOCR {
         kryo = new Kryo();
 
         kryo.register(Network.class, 0);
-        kryo.register(Layer.class, 1);
-        kryo.register(Neuron.class, 2);
+        kryo.register(FullLayer.class, 1);
+        kryo.register(ConvolutionalLayer.class, 2);
     }
 
     public static void generateNetwork() {
-        net = null;
-        net = new Network(784, 10)
-                .setHiddenLayers(1, 350)
-                .build();
+        //net = new Network().buildFullyConnectedNetwork(784, 10, 1, 350);
+        net = new Network().buildConvolutionalNetwork(15, 5, 10);
     }
 
     public static Network getNetwork() {
@@ -67,6 +63,7 @@ public class NeuralOCR {
 
                     for (int j = 0; j < bytes.length; j++) {
                         input[j] = bytes[j] & 0xff;
+                        //input[j] = (bytes[j] != 0) ? 1 : 0;
                     }
                     for (int j = 0; j < target.length; j++) {
                         target[j] = (j == digit) ? 1.0 : 0.0;
@@ -179,36 +176,5 @@ public class NeuralOCR {
             }
             gui.setError(((double)errorCount / ((double)iterations * 10.0)) * 100.0);
         }).start();
-    }
-
-
-    public static class DecompressibleInputStream extends ObjectInputStream {
-
-        public DecompressibleInputStream(InputStream in) throws IOException {
-            super(in);
-        }
-
-        protected ObjectStreamClass readClassDescriptor() throws IOException, ClassNotFoundException {
-            ObjectStreamClass resultClassDescriptor = super.readClassDescriptor(); // initially streams descriptor
-            Class localClass; // the class in the local JVM that this descriptor represents.
-            try {
-                localClass = Class.forName(resultClassDescriptor.getName());
-            } catch (ClassNotFoundException e) {
-                return resultClassDescriptor;
-            }
-            ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
-            if (localClassDescriptor != null) { // only if class implements serializable
-                final long localSUID = localClassDescriptor.getSerialVersionUID();
-                final long streamSUID = resultClassDescriptor.getSerialVersionUID();
-                if (streamSUID != localSUID) { // check for serialVersionUID mismatch.
-                    final StringBuffer s = new StringBuffer("Overriding serialized class version mismatch: ");
-                    s.append("local serialVersionUID = ").append(localSUID);
-                    s.append(" stream serialVersionUID = ").append(streamSUID);
-                    Exception e = new InvalidClassException(s.toString());
-                    resultClassDescriptor = localClassDescriptor; // Use local class descriptor for deserialization
-                }
-            }
-            return resultClassDescriptor;
-        }
     }
 }

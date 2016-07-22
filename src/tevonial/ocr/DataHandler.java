@@ -11,10 +11,11 @@ import java.util.Arrays;
 
 public class DataHandler {
     private static Data[] data = new Data[10];
+
     private static final int WIDTH = 28, HEIGHT = 28, SIZE = 784, SCALE_WIDTH = 100, SCALE_HEIGHT = 100;
 
     public static class Data {
-        private byte[] bytes;// = new byte[SIZE * 1000];
+        private byte[] bytes;
 
         public Data(byte[] bytes) {
             this.bytes = bytes;
