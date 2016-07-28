@@ -8,7 +8,7 @@ import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 
-public class Ocr extends javax.swing.JFrame {
+public class Ocr extends JFrame {
     private static Ocr instance;
     private static Object obj = new Object();
     private int selectedIndex;
@@ -37,10 +37,6 @@ public class Ocr extends javax.swing.JFrame {
     private Ocr() {
         initComponents();
         initListeners();
-    }
-
-    public void displayDigit(int digit) {
-        displayDigit(digit, DataHandler.getImage(digit));
     }
 
     public void displayDigit(int digit, BufferedImage img) {

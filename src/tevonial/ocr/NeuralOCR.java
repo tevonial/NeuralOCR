@@ -17,26 +17,25 @@ public class NeuralOCR {
 
     private static Kryo kryo;
 
-    private static int MAX;
+    private static DataHandler.Data trainingData, testData;
 
     public static void main(String[] args) {
         gui = Ocr.createGUI();
         gui.setFile(currentFile);
-        MAX = DataHandler.loadData();
+        trainingData = DataHandler.loadData("data/train-labels", "data/train-images");
+        testData = DataHandler.loadData("data/test-labels", "data/test-images");
 
         generateNetwork();
-        gui.displayDigit(0);
 
         kryo = new Kryo();
+        kryo.setRegistrationRequired(false);
 
-        kryo.register(Network.class, 0);
-        kryo.register(FullLayer.class, 1);
-        kryo.register(ConvolutionalLayer.class, 2);
+        guess(0);
     }
 
     public static void generateNetwork() {
-        //net = new Network().buildFullyConnectedNetwork(784, 10, 1, 350);
-        net = new Network().buildConvolutionalNetwork(15, 5, 10);
+        //net = Network.buildFullyConnectedNetwork(784, 10, 1, 350);
+        net = Network.buildConvolutionalNetwork(22, 5, 10);
     }
 
     public static Network getNetwork() {
@@ -48,37 +47,40 @@ public class NeuralOCR {
 
         new Thread(() -> {
             int iterations = gui.getIterations();
+            int length = trainingData.getLength();
             double[] input = new double[784];
             double[] target = new double[10];
-            byte[] bytes; int i;
+            byte[] bytes; int digit;
 
-            for (int iter = 0; iter < iterations; iter++) {
-                i = iter % MAX;
+            for (int i = 0; i < iterations; i++) {
+                if (i % length == 0) trainingData.reset();
 
-                gui.setProgress(iter+1, iterations);
-                for (int digit = 0; digit < 10; digit++) {
+                digit = trainingData.next();
+                bytes = trainingData.getImageBytes();
 
-                    bytes = DataHandler.getData(digit, i);
-                    gui.displayDigit(digit, DataHandler.renderImage(bytes));
+                gui.displayDigit(digit, DataHandler.renderImage(bytes));
 
-                    for (int j = 0; j < bytes.length; j++) {
-                        input[j] = bytes[j] & 0xff;
-                        //input[j] = (bytes[j] != 0) ? 1 : 0;
-                    }
-                    for (int j = 0; j < target.length; j++) {
-                        target[j] = (j == digit) ? 1.0 : 0.0;
-                    }
-                    net.process(input, target, true, null);
-
+                for (int j = 0; j < bytes.length; j++) {
+                    input[j] = bytes[j] & 0xff;
                 }
+                for (int j = 0; j < target.length; j++) {
+                    target[j] = (j == digit) ? 1.0 : 0.0;
+                }
+                net.process(input, target, true, null);
+
+                gui.setProgress(i+1, iterations);
             }
         }).start();
 
     }
 
     public static void guess(int digit) {
-        int head = (int)(Math.random() * MAX);
-        byte[] data = DataHandler.getData(digit, head);
+        int rand = (int)(Math.random() * testData.getLength());
+        while (testData.getLabel(rand) != digit) {
+            rand++;
+        }
+        byte[] data = testData.getImageBytes(rand);
+
         gui.displayDigit(digit, DataHandler.renderImage(data));
 
         double[] input = new double[784];
@@ -113,6 +115,7 @@ public class NeuralOCR {
             kryo.writeClassAndObject(output, net);
 
             output.close();
+
             fos.close();
             currentFile = file; gui.setFile(currentFile);
         } catch (IOException e) { e.printStackTrace(); }
@@ -141,40 +144,42 @@ public class NeuralOCR {
 
     public static void testAll() {
         new Thread(() -> {
-            int iterations = MAX;
+            int iterations = testData.getLength();
             double[] input = new double[784];
             double[] target = new double[10];
-            byte[] bytes;
+            byte[] bytes; int digit;
             double max = 0.0; int guess = 0;
             int errorCount = 0;
+            testData.reset();
 
             for (int i = 0; i < iterations; i++) {
                 gui.setProgress(i+1, iterations);
-                for (int digit = 0; digit < 10; digit++) {
 
-                    bytes = DataHandler.getData(digit, i);
-                    gui.displayDigit(digit, DataHandler.renderImage(bytes));
+                digit = testData.next();
+                bytes = testData.getImageBytes();
 
-                    for (int j = 0; j < bytes.length; j++) {
-                        input[j] = bytes[j] & 0xff;
-                    }
+                gui.displayDigit(digit, DataHandler.renderImage(bytes));
 
-                    double[] output = net.process(input, target, false, null);
+                for (int j = 0; j < bytes.length; j++) {
+                    input[j] = bytes[j] & 0xff;
+                }
 
-                    max = 0.0;
-                    for (int j=0; j<10; j++) {
-                        if (output[j] > max) {
-                            max = output[j];
-                            guess = j;
-                        }
-                    }
+                double[] output = net.process(input, target, false, null);
 
-                    if (guess != digit) {
-                        errorCount++;
+                max = 0.0;
+                for (int j=0; j<10; j++) {
+                    if (output[j] > max) {
+                        max = output[j];
+                        guess = j;
                     }
                 }
+
+                if (guess != digit) {
+                    errorCount++;
+                }
+
             }
-            gui.setError(((double)errorCount / ((double)iterations * 10.0)) * 100.0);
+            gui.setError(((double)errorCount / ((double)iterations)) * 100.0);
         }).start();
     }
 }

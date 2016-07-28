@@ -65,10 +65,10 @@ public class Inspector extends javax.swing.JFrame {
                 System.err.println("Error loading " + path.toString());
             }
 
-            data = new DataHandler.Data(temp);
+            data = new DataHandler.Data(null, temp);
 
             fileLabel.setText(path.getFileName().toString());
-            sizeLabel.setText(String.valueOf(data.getSize()));
+            sizeLabel.setText(String.valueOf(data.getFileSize()));
 
             max = data.getLength();
             lengthLabel.setText(String.valueOf(max));
@@ -82,7 +82,7 @@ public class Inspector extends javax.swing.JFrame {
 
     private boolean seek(int position) {
         if (position >= 0 && position < max) {
-            byte[] pixels = data.getBytes(position);
+            byte[] pixels = data.getImageBytes(position);
             imagePanel.setImage(DataHandler.renderImage(pixels, 200, 200));
             return true;
         } else {
