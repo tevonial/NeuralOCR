@@ -12,6 +12,12 @@ public class Ocr extends JFrame {
     private static Ocr instance;
     private static Object obj = new Object();
     private int selectedIndex;
+    private boolean busy;
+
+    private long last_iterations = 0, last_i = 0;
+    private long time;
+    private double diff[];
+    private int diff_ptr;
 
     public static Ocr createGUI() {
         try {
@@ -40,19 +46,23 @@ public class Ocr extends JFrame {
     }
 
     public void displayDigit(int digit, BufferedImage img) {
-        jLabel6.setText(String.valueOf(digit));
+        target.setText(String.valueOf(digit));
         if (img != null ) {
             imagePanel.setImage(img);
         }
     }
 
-    public void setGuess(int g) {
-        jLabel7.setText(String.valueOf(g));
+    public void setGuess(Integer g) {
+        if (g == null) {
+            guess.setText(" ");
+        } else {
+            guess.setText(String.valueOf(g));
+        }
     }
 
     public void setError(double e) {
         String f = "%4.3f";
-        jLabel9.setText(String.format(f, e) + "%");
+        error.setText(String.format(f, e) + "%");
     }
 
     public int getIterations() {
@@ -71,9 +81,42 @@ public class Ocr extends JFrame {
         return l;
     }
 
-    public void setProgress(int x, int t) {
-        jLabel5.setText(x + "/" + t);
-        progressBar.setValue((x * 100) / t);
+    public void setProgress(int i, int iterations) {
+        iterationsCounter.setText(i + "/" + iterations);
+        progressBar.setValue((i-- * 100) / iterations);
+        if (i % 10 == 0) updateEta(i, iterations);
+    }
+
+    public void updateEta(int i, int iterations) {
+        if (iterations != last_iterations || i < last_i) {
+            diff = new double[20];
+            diff_ptr = 0;
+            time = System.currentTimeMillis() + 10000;
+            last_iterations = iterations;
+        }
+
+        last_i = i;
+
+        diff[diff_ptr++] = System.currentTimeMillis() - time;
+        time = System.currentTimeMillis();
+
+        if (diff_ptr == 20)
+            diff_ptr = 0;
+
+        if (i % 50 == 0) {
+            double avg = 0.0, b = 0.0;
+            for (int a = 0; a < 5; a++)
+                if (diff[a] > 0) {
+                    avg += diff[a];
+                    b++;
+                }
+
+            avg /= b;
+
+            long s = (long) ((avg / 10000.0) * (double) (iterations - i));
+            labelEta.setVisible(true);
+            etaCounter.setText(String.format("%d:%02d:%02d", s / 3600, (s % 3600) / 60, (s % 60)));
+        }
     }
 
     private void listSelected(int index) {
@@ -99,15 +142,41 @@ public class Ocr extends JFrame {
         setTitle(filename + " - Neural OCR");
     }
 
+    public void setBusy(boolean busy) {
+        this.busy = busy;
+        if (busy) {
+            stopButton.setText("Stop");
+            learnButton.setEnabled(false);
+            jList.setEnabled(false);
+        } else {
+            stopButton.setText("Reset");
+            learnButton.setEnabled(true);
+            iterationsCounter.setText("-/-");
+            progressBar.setValue(0);
+            labelEta.setVisible(false);
+            etaCounter.setText(null);
+            jList.setEnabled(true);
+        }
+    }
+
     private void initListeners() {
-        learnButton.addActionListener(evt -> NeuralOCR.learn());
-        stopButton.addActionListener(evt -> NeuralOCR.generateNetwork());
+        learnButton.addActionListener(evt -> {
+            NeuralOCR.learn();
+        });
+        stopButton.addActionListener(evt -> {
+            if (busy) {
+                NeuralOCR.task.interrupt();
+                //setBusy(false);
+            } else {
+                NeuralOCR.generateNetwork();
+            }
+        });
 
         jList.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent evt) {
                 JList list = (JList)evt.getSource();
-                if (evt.getClickCount() == 2) {
+                if (evt.getClickCount() == 2 && list.isEnabled()) {
                     listSelected(list.locationToIndex(evt.getPoint()));
                 }
             }
@@ -115,8 +184,9 @@ public class Ocr extends JFrame {
         jList.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent keyEvent) {
-                if (keyEvent.getKeyCode() == KeyEvent.VK_ENTER) {
-                    listSelected(jList.getSelectedIndex());
+                JList list = (JList)keyEvent.getSource();
+                if (keyEvent.getKeyCode() == KeyEvent.VK_ENTER  && list.isEnabled()) {
+                    listSelected(list.getSelectedIndex());
                 }
             }
         });
@@ -136,7 +206,7 @@ public class Ocr extends JFrame {
             public void keyReleased(KeyEvent keyEvent) {
                 String t = iterationsTextField.getText();
                 if (t.isEmpty()) { t = "-"; }
-                jLabel5.setText("-/" + t);
+                iterationsCounter.setText("-/" + t);
             }
         });
         saveMenuItem.addActionListener(actionEvent -> NeuralOCR.save(null));
@@ -170,48 +240,39 @@ public class Ocr extends JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">
     private void initComponents() {
 
-        menuBar = new JMenuBar();
-        fileMenu = new JMenu("File");
-        openMenuItem = new JMenuItem("Open");
-        saveMenuItem  =new JMenuItem("Save");
-        saveAsMenuItem  =new JMenuItem("Save As");
-        testMenu = new JMenu("Test");
-        testAllMenuItem = new JMenuItem("Test all");
-        testDrawMenuItem = new JMenuItem("Draw...");
-        inspectMenuItem = new JMenuItem("Inspector");
-
         scrollPane = new javax.swing.JScrollPane();
         jList = new javax.swing.JList<>();
-        jPanel3 = new javax.swing.JPanel();
-        jLabel3 = new javax.swing.JLabel();
-        jLabel4 = new javax.swing.JLabel();
-        progressBar = new javax.swing.JProgressBar();
-        jLabel5 = new javax.swing.JLabel();
+        controlPanel = new javax.swing.JPanel();
+        labelIterations = new javax.swing.JLabel();
+        labelLR = new javax.swing.JLabel();
+        labelEta = new javax.swing.JLabel();
         iterationsTextField = new javax.swing.JTextField();
-        learnButton = new javax.swing.JButton();
         learningRateTextField = new javax.swing.JTextField();
+        iterationsCounter = new javax.swing.JLabel();
+        etaCounter = new javax.swing.JLabel();
+        learnButton = new javax.swing.JButton();
         stopButton = new javax.swing.JButton();
-        jPanel2 = new javax.swing.JPanel();
-        jLabel1 = new javax.swing.JLabel();
-        jLabel2 = new javax.swing.JLabel();
+        progressBar = new javax.swing.JProgressBar();
+        previewPanel = new javax.swing.JPanel();
         imagePanel = new ImagePanel();
-        jLabel6 = new javax.swing.JLabel();
-        jLabel7 = new javax.swing.JLabel();
-        jLabel8 = new JLabel();
-        jLabel9 = new JLabel();
-
-        fileMenu.add(openMenuItem);
-        fileMenu.add(saveMenuItem);
-        fileMenu.add(saveAsMenuItem);
-        testMenu.add(testAllMenuItem);
-        testMenu.add(testDrawMenuItem);
-        testMenu.add(inspectMenuItem);
-        menuBar.add(fileMenu);
-        menuBar.add(testMenu);
-
-        setJMenuBar(menuBar);
+        labelTarget = new javax.swing.JLabel();
+        labelGuess = new javax.swing.JLabel();
+        labelError = new javax.swing.JLabel();
+        target = new javax.swing.JLabel();
+        guess = new javax.swing.JLabel();
+        error = new javax.swing.JLabel();
+        menuBar = new javax.swing.JMenuBar();
+        fileMenu = new javax.swing.JMenu();
+        openMenuItem = new javax.swing.JMenuItem();
+        saveMenuItem = new javax.swing.JMenuItem();
+        saveAsMenuItem = new javax.swing.JMenuItem();
+        testMenu = new javax.swing.JMenu();
+        testAllMenuItem = new javax.swing.JMenuItem();
+        testDrawMenuItem = new javax.swing.JMenuItem();
+        inspectMenuItem = new javax.swing.JMenuItem();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setTitle("DigitDisplayTest");
         setResizable(false);
 
         jList.setModel(new javax.swing.AbstractListModel<String>() {
@@ -219,69 +280,80 @@ public class Ocr extends JFrame {
             public int getSize() { return strings.length; }
             public String getElementAt(int i) { return strings[i]; }
         });
-
         scrollPane.setViewportView(jList);
 
-        jLabel3.setText("Iterations:");
+        labelIterations.setText("Iterations:");
 
-        jLabel4.setText("Learning rate:");
+        labelLR.setText("Learning rate:");
 
-        jLabel5.setHorizontalAlignment(javax.swing.SwingConstants.TRAILING);
-        jLabel5.setText("-/-");
+        labelEta.setVisible(false);
+        labelEta.setText("Time remaining:");
+
+        iterationsCounter.setHorizontalAlignment(javax.swing.SwingConstants.TRAILING);
+        iterationsCounter.setText("-/-");
+
+        etaCounter.setHorizontalAlignment(javax.swing.SwingConstants.TRAILING);
+        etaCounter.setText(" ");
 
         learnButton.setText("Learn");
+
         stopButton.setText("Reset");
 
-        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
-        jPanel3.setLayout(jPanel3Layout);
-        jPanel3Layout.setHorizontalGroup(
-                jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                        .addGroup(jPanel3Layout.createSequentialGroup()
+        javax.swing.GroupLayout controlPanelLayout = new javax.swing.GroupLayout(controlPanel);
+        controlPanel.setLayout(controlPanelLayout);
+        controlPanelLayout.setHorizontalGroup(
+                controlPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(controlPanelLayout.createSequentialGroup()
                                 .addContainerGap()
-                                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                        .addGroup(jPanel3Layout.createSequentialGroup()
-                                                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                                        .addComponent(jLabel4)
-                                                        .addComponent(jLabel3))
+                                .addGroup(controlPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                        .addGroup(controlPanelLayout.createSequentialGroup()
+                                                .addGroup(controlPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                                        .addComponent(labelLR)
+                                                        .addComponent(labelIterations))
                                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                                .addGroup(controlPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                                         .addComponent(learningRateTextField, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 69, javax.swing.GroupLayout.PREFERRED_SIZE)
                                                         .addComponent(iterationsTextField, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 69, javax.swing.GroupLayout.PREFERRED_SIZE)))
                                         .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, 207, Short.MAX_VALUE)
-                                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel3Layout.createSequentialGroup()
-                                                .addComponent(learnButton)
+                                        .addGroup(controlPanelLayout.createSequentialGroup()
+                                                .addGroup(controlPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                                        .addGroup(controlPanelLayout.createSequentialGroup()
+                                                                .addComponent(learnButton)
+                                                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                                                .addComponent(stopButton))
+                                                        .addComponent(labelEta, javax.swing.GroupLayout.DEFAULT_SIZE, 138, Short.MAX_VALUE))
                                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                                .addComponent(stopButton)
-                                                .addGap(18, 18, 18)
-                                                .addComponent(jLabel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                                                .addGroup(controlPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                                        .addComponent(etaCounter, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                                        .addComponent(iterationsCounter, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
                                 .addContainerGap())
         );
-        jPanel3Layout.setVerticalGroup(
-                jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                        .addGroup(jPanel3Layout.createSequentialGroup()
+        controlPanelLayout.setVerticalGroup(
+                controlPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(controlPanelLayout.createSequentialGroup()
                                 .addContainerGap()
-                                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                        .addComponent(jLabel3)
+                                .addGroup(controlPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                        .addComponent(labelIterations)
                                         .addComponent(iterationsTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                        .addComponent(jLabel4)
+                                .addGroup(controlPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                        .addComponent(labelLR)
                                         .addComponent(learningRateTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 21, Short.MAX_VALUE)
-                                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 27, Short.MAX_VALUE)
+                                .addGroup(controlPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                        .addComponent(etaCounter)
+                                        .addComponent(labelEta))
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addGroup(controlPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                                         .addComponent(learnButton)
                                         .addComponent(stopButton)
-                                        .addComponent(jLabel5))
+                                        .addComponent(iterationsCounter))
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(progressBar, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addContainerGap())
         );
 
-        jPanel2.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.LOWERED));
-
-        jLabel1.setText("Target:");
-
-        jLabel2.setText("Guess:");
+        previewPanel.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.LOWERED));
 
         imagePanel.setPreferredSize(new java.awt.Dimension(100, 100));
 
@@ -296,63 +368,95 @@ public class Ocr extends JFrame {
                         .addGap(0, 100, Short.MAX_VALUE)
         );
 
-        jLabel6.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
-        jLabel6.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
-        //jLabel6.setText("-");
+        labelTarget.setText("Target:");
 
-        jLabel7.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
-        jLabel7.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
-        //jLabel7.setText("-");
+        labelGuess.setText("Guess:");
 
-        jLabel8.setText("Error:");
+        labelError.setText("Error:");
 
-        jLabel9.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
-        jLabel9.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
-        //jLabel9.setText("-");
+        target.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
+        target.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        target.setText(" ");
 
-        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
-        jPanel2.setLayout(jPanel2Layout);
-        jPanel2Layout.setHorizontalGroup(
-                jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+        guess.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
+        guess.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        guess.setText(" ");
+
+        error.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
+        error.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        error.setText(" ");
+
+        javax.swing.GroupLayout previewPanelLayout = new javax.swing.GroupLayout(previewPanel);
+        previewPanel.setLayout(previewPanelLayout);
+        previewPanelLayout.setHorizontalGroup(
+                previewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, previewPanelLayout.createSequentialGroup()
                                 .addContainerGap()
                                 .addComponent(imagePanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                        .addGroup(jPanel2Layout.createSequentialGroup()
-                                                .addComponent(jLabel1)
+                                .addGroup(previewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                        .addGroup(previewPanelLayout.createSequentialGroup()
+                                                .addComponent(labelTarget)
                                                 .addGap(18, 18, 18)
-                                                .addComponent(jLabel6, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                                        .addGroup(jPanel2Layout.createSequentialGroup()
-                                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                                        .addComponent(jLabel2)
-                                                        .addComponent(jLabel8))
+                                                .addComponent(target, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                                        .addGroup(previewPanelLayout.createSequentialGroup()
+                                                .addGroup(previewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                                        .addComponent(labelGuess)
+                                                        .addComponent(labelError))
                                                 .addGap(5, 5, 5)
-                                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                                        .addComponent(jLabel9, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                                        .addComponent(jLabel7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                                                .addGroup(previewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                                        .addComponent(error, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                                        .addComponent(guess, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
                                 .addContainerGap())
         );
-        jPanel2Layout.setVerticalGroup(
-                jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                        .addGroup(jPanel2Layout.createSequentialGroup()
+        previewPanelLayout.setVerticalGroup(
+                previewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(previewPanelLayout.createSequentialGroup()
                                 .addContainerGap()
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                .addGroup(previewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                         .addComponent(imagePanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addGroup(jPanel2Layout.createSequentialGroup()
-                                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                                        .addComponent(jLabel1)
-                                                        .addComponent(jLabel6))
+                                        .addGroup(previewPanelLayout.createSequentialGroup()
+                                                .addGroup(previewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                                        .addComponent(labelTarget)
+                                                        .addComponent(target))
                                                 .addGap(39, 39, 39)
-                                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                                        .addComponent(jLabel7)
-                                                        .addComponent(jLabel2))
+                                                .addGroup(previewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                                        .addComponent(guess)
+                                                        .addComponent(labelGuess))
                                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                                        .addComponent(jLabel8)
-                                                        .addComponent(jLabel9))))
+                                                .addGroup(previewPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                                        .addComponent(labelError)
+                                                        .addComponent(error))))
                                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
+
+        fileMenu.setText("File");
+
+        openMenuItem.setText("Open");
+        fileMenu.add(openMenuItem);
+
+        saveMenuItem.setText("Save");
+        fileMenu.add(saveMenuItem);
+
+        saveAsMenuItem.setText("Save As...");
+        fileMenu.add(saveAsMenuItem);
+
+        menuBar.add(fileMenu);
+
+        testMenu.setText("Test");
+
+        testAllMenuItem.setText("Test all");
+        testMenu.add(testAllMenuItem);
+
+        testDrawMenuItem.setText("Draw...");
+        testMenu.add(testDrawMenuItem);
+
+        inspectMenuItem.setText("Inspector");
+        testMenu.add(inspectMenuItem);
+
+        menuBar.add(testMenu);
+
+        setJMenuBar(menuBar);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -363,8 +467,8 @@ public class Ocr extends JFrame {
                                 .addComponent(scrollPane, javax.swing.GroupLayout.PREFERRED_SIZE, 170, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                        .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                        .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                                        .addComponent(previewPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                        .addComponent(controlPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
@@ -374,39 +478,47 @@ public class Ocr extends JFrame {
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                         .addComponent(scrollPane)
                                         .addGroup(layout.createSequentialGroup()
-                                                .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                .addComponent(previewPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                                .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                                                .addComponent(controlPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                                 .addContainerGap())
         );
-
-        Image image = Toolkit.getDefaultToolkit().getImage(getClass().getResource("icon.png"));
-        setIconImage(image);
 
         pack();
     }// </editor-fold>
 
     // Variables declaration - do not modify
-    private ImagePanel imagePanel;
-    private javax.swing.JButton learnButton;
-    private javax.swing.JButton stopButton;
-    private javax.swing.JLabel jLabel1;
-    private javax.swing.JLabel jLabel2;
-    private javax.swing.JLabel jLabel3;
-    private javax.swing.JLabel jLabel4;
-    private javax.swing.JLabel jLabel5;
-    private javax.swing.JLabel jLabel6;
-    private javax.swing.JLabel jLabel7;
-    private JLabel jLabel8, jLabel9;
-    private javax.swing.JList<String> jList;
-    private javax.swing.JPanel jPanel2;
-    private javax.swing.JPanel jPanel3;
-    private javax.swing.JProgressBar progressBar;
-    private javax.swing.JScrollPane scrollPane;
+    private javax.swing.JPanel controlPanel;
+    private javax.swing.JLabel error;
+    private javax.swing.JLabel etaCounter;
+    private javax.swing.JMenu fileMenu;
+    private javax.swing.JLabel guess;
+    /*
+    private javax.swing.JPanel imagePanel;
+    */private ImagePanel imagePanel;
+    private javax.swing.JMenuItem inspectMenuItem;
+    private javax.swing.JLabel iterationsCounter;
     private javax.swing.JTextField iterationsTextField;
+    private javax.swing.JList<String> jList;
+    private javax.swing.JLabel labelError;
+    private javax.swing.JLabel labelEta;
+    private javax.swing.JLabel labelGuess;
+    private javax.swing.JLabel labelIterations;
+    private javax.swing.JLabel labelLR;
+    private javax.swing.JLabel labelTarget;
+    private javax.swing.JButton learnButton;
     private javax.swing.JTextField learningRateTextField;
-    private JMenuBar menuBar;
-    private JMenu fileMenu, testMenu;
-    private JMenuItem saveMenuItem, saveAsMenuItem, openMenuItem, testAllMenuItem, testDrawMenuItem, inspectMenuItem;
+    private javax.swing.JMenuBar menuBar;
+    private javax.swing.JMenuItem openMenuItem;
+    private javax.swing.JPanel previewPanel;
+    private javax.swing.JProgressBar progressBar;
+    private javax.swing.JMenuItem saveAsMenuItem;
+    private javax.swing.JMenuItem saveMenuItem;
+    private javax.swing.JScrollPane scrollPane;
+    private javax.swing.JButton stopButton;
+    private javax.swing.JLabel target;
+    private javax.swing.JMenuItem testAllMenuItem;
+    private javax.swing.JMenuItem testDrawMenuItem;
+    private javax.swing.JMenu testMenu;
     // End of variables declaration
 }
