@@ -18,6 +18,7 @@ public class NeuralOCR {
     private static Kryo kryo;
 
     private static DataHandler.Data trainingData, testData;
+    public static Thread task;
 
     public static void main(String[] args) {
         gui = Ocr.createGUI();
@@ -25,17 +26,21 @@ public class NeuralOCR {
         trainingData = DataHandler.loadData("data/train-labels", "data/train-images");
         testData = DataHandler.loadData("data/test-labels", "data/test-images");
 
+        //trainingData = DataHandler.loadCustomData();
+        //testData = DataHandler.loadCustomData();
+
         generateNetwork();
 
         kryo = new Kryo();
         kryo.setRegistrationRequired(false);
 
         guess(0);
+        gui.setGuess(null);
     }
 
     public static void generateNetwork() {
         //net = Network.buildFullyConnectedNetwork(784, 10, 1, 350);
-        net = Network.buildConvolutionalNetwork(22, 5, 10);
+        net = Network.buildConvolutionalNetwork(30, 5, 10);
     }
 
     public static Network getNetwork() {
@@ -44,15 +49,20 @@ public class NeuralOCR {
 
     public static void learn() {
         net.setLearningRate(gui.getLearningRate());
+        gui.setGuess(null);
 
-        new Thread(() -> {
+        task = new Thread(() -> {
             int iterations = gui.getIterations();
             int length = trainingData.getLength();
             double[] input = new double[784];
             double[] target = new double[10];
             byte[] bytes; int digit;
+            gui.setBusy(true);
 
             for (int i = 0; i < iterations; i++) {
+                if (Thread.currentThread().isInterrupted()) break;
+                gui.setProgress(i+1, iterations);
+
                 if (i % length == 0) trainingData.reset();
 
                 digit = trainingData.next();
@@ -67,10 +77,12 @@ public class NeuralOCR {
                     target[j] = (j == digit) ? 1.0 : 0.0;
                 }
                 net.process(input, target, true, null);
-
-                gui.setProgress(i+1, iterations);
             }
-        }).start();
+
+            gui.setBusy(false);
+        });
+
+        task.start();
 
     }
 
@@ -143,7 +155,7 @@ public class NeuralOCR {
     }
 
     public static void testAll() {
-        new Thread(() -> {
+        task = new Thread(() -> {
             int iterations = testData.getLength();
             double[] input = new double[784];
             double[] target = new double[10];
@@ -151,8 +163,11 @@ public class NeuralOCR {
             double max = 0.0; int guess = 0;
             int errorCount = 0;
             testData.reset();
+            gui.setBusy(true);
 
             for (int i = 0; i < iterations; i++) {
+                if (Thread.currentThread().isInterrupted()) break;
+
                 gui.setProgress(i+1, iterations);
 
                 digit = testData.next();
@@ -179,7 +194,12 @@ public class NeuralOCR {
                 }
 
             }
-            gui.setError(((double)errorCount / ((double)iterations)) * 100.0);
-        }).start();
+            gui.setBusy(false);
+
+            if (!Thread.currentThread().isInterrupted())
+                gui.setError(((double) errorCount / ((double) iterations)) * 100.0);
+        });
+
+        task.start();
     }
 }
