@@ -7,6 +7,11 @@ import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class Ocr extends JFrame {
     private static Ocr instance;
@@ -16,8 +21,10 @@ public class Ocr extends JFrame {
 
     private long last_iterations = 0, last_i = 0;
     private long time;
-    private double diff[];
+    private int diff[];
     private int diff_ptr;
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private ScheduledFuture etaFuture;
 
     public static Ocr createGUI() {
         try {
@@ -84,12 +91,12 @@ public class Ocr extends JFrame {
     public void setProgress(int i, int iterations) {
         iterationsCounter.setText(i + "/" + iterations);
         progressBar.setValue((i-- * 100) / iterations);
-        if (i % 10 == 0) updateEta(i, iterations);
+        if (i % 10 == 0) progressUpdate(i, iterations);
     }
 
-    public void updateEta(int i, int iterations) {
+    public void progressUpdate(int i, int iterations) {
         if (iterations != last_iterations || i < last_i) {
-            diff = new double[20];
+            diff = new int[20];
             diff_ptr = 0;
             time = System.currentTimeMillis() + 10000;
             last_iterations = iterations;
@@ -97,27 +104,32 @@ public class Ocr extends JFrame {
 
         last_i = i;
 
-        diff[diff_ptr++] = System.currentTimeMillis() - time;
+        diff[diff_ptr++] = (int)(System.currentTimeMillis() - time);
         time = System.currentTimeMillis();
 
         if (diff_ptr == 20)
             diff_ptr = 0;
+    }
 
-        if (i % 50 == 0) {
+    private Runnable updateEta = new Runnable() {
+
+        @Override
+        public void run() {
             double avg = 0.0, b = 0.0;
-            for (int a = 0; a < 5; a++)
+            for (int a = 0; a < 20; a++) {
                 if (diff[a] > 0) {
                     avg += diff[a];
                     b++;
                 }
+            }
 
             avg /= b;
 
-            long s = (long) ((avg / 10000.0) * (double) (iterations - i));
+            long s = (long) ((avg / 10000.0) * (double) (last_iterations - last_i));
             labelEta.setVisible(true);
-            etaCounter.setText(String.format("%d:%02d:%02d", s / 3600, (s % 3600) / 60, (s % 60)));
+            etaCounter.setText(String.format("%02d:%02d:%02d", s / 3600, (s % 3600) / 60, (s % 60)));
         }
-    }
+    };
 
     private void listSelected(int index) {
         int digit = index;
@@ -148,7 +160,11 @@ public class Ocr extends JFrame {
             stopButton.setText("Stop");
             learnButton.setEnabled(false);
             jList.setEnabled(false);
+
+            etaFuture = scheduler.scheduleAtFixedRate(updateEta, 1, 1, SECONDS);
         } else {
+            etaFuture.cancel(true);
+
             stopButton.setText("Reset");
             learnButton.setEnabled(true);
             iterationsCounter.setText("-/-");
@@ -166,7 +182,6 @@ public class Ocr extends JFrame {
         stopButton.addActionListener(evt -> {
             if (busy) {
                 NeuralOCR.task.interrupt();
-                //setBusy(false);
             } else {
                 NeuralOCR.generateNetwork();
             }
